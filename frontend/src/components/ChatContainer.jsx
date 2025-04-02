@@ -8,8 +8,14 @@ import { formatMessageTime } from "../lib/utils"; // Import utility function to 
 
 const ChatContainer = () => {
   // Extract chat-related state and functions from chat store
-  const { messages, getMessages, isMessagesLoading, selectedUser } =
-    useChatStore();
+  const {
+    messages,
+    getMessages,
+    isMessagesLoading,
+    selectedUser,
+    subscribeToMessages,
+    unsubscribeFromMessages,
+  } = useChatStore();
 
   // Extract authenticated user data from auth store
   const { authUser } = useAuthStore();
@@ -20,7 +26,25 @@ const ChatContainer = () => {
   // Fetch messages when the selected user changes
   useEffect(() => {
     getMessages(selectedUser._id); // Call the function to fetch messages
-  }, [selectedUser._id, getMessages]); // Re-run when selectedUser._id or getMessages changes
+    subscribeToMessages(); // Subscribe to new messages
+
+    return () => {
+      unsubscribeFromMessages();
+    }; // Unsubscribe from messages when component unmounts
+  }, [
+    selectedUser._id,
+    getMessages,
+    subscribeToMessages,
+    unsubscribeFromMessages,
+  ]); // Re-run when selectedUser._id or getMessages changes
+
+  useEffect(() => {
+    // Check if the messageEndRef is set and messages exist
+    if (messageEndRef.current && messages) {
+      // Scroll to the latest message smoothly when messages change
+      messageEndRef.current.scrollIntoView({ behaviour: "smooth" });
+    }
+  }, [messages]); // Run this effect whenever the messages array updates
 
   // If messages are loading, show skeleton loader
   if (isMessagesLoading)
@@ -44,6 +68,7 @@ const ChatContainer = () => {
             className={`chat ${
               message.senderId === authUser._id ? "chat-end" : "chat-start"
             }`} // Align messages to the right if sent by the logged-in user, otherwise align left
+            ref={messageEndRef} // Reference to the last message
           >
             {/* Profile picture of the message sender */}
             <div className="chat-image avatar">
